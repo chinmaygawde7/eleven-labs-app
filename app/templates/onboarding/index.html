@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Add a loved one — Grief Companion{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Add a loved one</h1>
+<p class="page-sub">
+  Tell us about them, upload a recording of their voice, and choose
+  which language you'd like their messages delivered in.
+</p>
+
+<div class="card">
+  <form id="onboarding-form">
+
+    <div class="field">
+      <label for="name">Their name</label>
+      <input type="text" id="name" name="name"
+             placeholder="e.g. Dad, Grandma Rose, Nana" required />
+    </div>
+
+    <div class="field">
+      <label for="relationship">Your relationship</label>
+      <select id="relationship" name="relationship" required>
+        <option value="" disabled selected>Select one</option>
+        <option value="father">Father</option>
+        <option value="mother">Mother</option>
+        <option value="grandfather">Grandfather</option>
+        <option value="grandmother">Grandmother</option>
+        <option value="husband">Husband</option>
+        <option value="wife">Wife</option>
+        <option value="brother">Brother</option>
+        <option value="sister">Sister</option>
+        <option value="friend">Friend</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="personality_notes">
+        How did they speak?
+        <span style="color:var(--text-hint);font-weight:400;">(optional but important)</span>
+      </label>
+      <textarea
+        id="personality_notes"
+        name="personality_notes"
+        placeholder="e.g. She always called me 'beta' and ended every call with 'jeva khallyas ka?' He was funny, dry humor, never said I love you directly but always showed up."
+      ></textarea>
+    </div>
+
+    <div class="lang-grid">
+
+      <div class="field">
+        <label for="audio_language">Language of the uploaded audio</label>
+        <select id="audio_language" name="audio_language" required>
+          {% for key, label in languages.items() %}
+          <option value="{{ key }}" {% if key == 'English' %}selected{% endif %}>
+            {{ label }}
+          </option>
+          {% endfor %}
+        </select>
+        <span class="field-hint">
+          What language is the voice recording in? We use this to optimise the clone.
+        </span>
+      </div>
+
+      <div class="field">
+        <label for="message_language">Language for their messages</label>
+        <select id="message_language" name="message_language" required>
+          {% for key, label in languages.items() %}
+          <option value="{{ key }}" {% if key == 'English' %}selected{% endif %}>
+            {{ label }}
+          </option>
+          {% endfor %}
+        </select>
+        <span class="field-hint">
+          What language should their voice messages be written and spoken in?
+        </span>
+      </div>
+
+    </div>
+
+    <div class="lang-note" id="lang-note" style="display:none;">
+      <strong>Note:</strong> <span id="lang-note-text"></span>
+    </div>
+
+    <div class="field" style="margin-top:8px;">
+      <label>Voice recording</label>
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="audio-input" accept=".mp3,.wav,.m4a,.ogg,.webm" />
+        <div class="upload-icon">🎙</div>
+        <div class="upload-label">Click to choose a file or drag it here</div>
+        <div class="upload-hint">mp3, wav, m4a, ogg or webm · max 25 MB · minimum 30 seconds</div>
+        <div class="upload-name" id="file-name"></div>
+      </div>
+    </div>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-msg" id="progress-msg">Uploading…</div>
+    </div>
+
+    <div style="margin-top:24px;">
+      <button type="submit" class="btn btn-primary btn-full" id="submit-btn">
+        Save and clone voice
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+const ELEVENLABS_NATIVE = ["English", "Hindi", "Tamil", "Telugu"];
+
+const zone        = document.getElementById('upload-zone');
+const fileInput   = document.getElementById('audio-input');
+const fileName    = document.getElementById('file-name');
+const form        = document.getElementById('onboarding-form');
+const submitBtn   = document.getElementById('submit-btn');
+const progWrap    = document.getElementById('progress-wrap');
+const progFill    = document.getElementById('progress-fill');
+const progMsg     = document.getElementById('progress-msg');
+const langNote    = document.getElementById('lang-note');
+const langNoteMsg = document.getElementById('lang-note-text');
+const msgLangSel  = document.getElementById('message_language');
+
+// Show a note when user picks a language ElevenLabs doesn't natively support
+msgLangSel.addEventListener('change', () => {
+  const val = msgLangSel.value;
+  if (!ELEVENLABS_NATIVE.includes(val)) {
+    langNote.style.display = 'block';
+    langNoteMsg.textContent =
+      `${val} is not yet natively supported by ElevenLabs — we'll use Hindi as the closest match for speech synthesis. The message will still be written in ${val} by Claude.`;
+  } else {
+    langNote.style.display = 'none';
+  }
+});
+
+zone.addEventListener('click', () => fileInput.click());
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) {
+    fileInput.files = e.dataTransfer.files;
+    fileName.textContent = e.dataTransfer.files[0].name;
+  }
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) fileName.textContent = fileInput.files[0].name;
+});
+
+function setProgress(pct, msg) {
+  progWrap.style.display = 'block';
+  progFill.style.width   = pct + '%';
+  progMsg.textContent    = msg;
+}
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+
+  if (!fileInput.files[0]) {
+    alert('Please select an audio file.');
+    return;
+  }
+
+  submitBtn.disabled    = true;
+  submitBtn.textContent = 'Working…';
+
+  const data = new FormData();
+  data.append('name',              document.getElementById('name').value);
+  data.append('relationship',      document.getElementById('relationship').value);
+  data.append('personality_notes', document.getElementById('personality_notes').value);
+  data.append('audio_language',    document.getElementById('audio_language').value);
+  data.append('message_language',  document.getElementById('message_language').value);
+  data.append('audio',             fileInput.files[0]);
+
+  try {
+    setProgress(30, 'Uploading audio…');
+    const uploadRes  = await fetch('/voice/upload', { method: 'POST', body: data });
+    const uploadData = await uploadRes.json();
+
+    if (!uploadData.success) {
+      alert(uploadData.error || 'Upload failed.');
+      submitBtn.disabled    = false;
+      submitBtn.textContent = 'Save and clone voice';
+      return;
+    }
+
+    setProgress(60, 'Cloning voice with ElevenLabs… this takes about 15 seconds.');
+    const cloneRes  = await fetch(`/voice/clone/${uploadData.loved_one_id}`, { method: 'POST' });
+    const cloneData = await cloneRes.json();
+
+    if (!cloneData.success) {
+      alert(cloneData.error || 'Voice cloning failed.');
+      submitBtn.disabled    = false;
+      submitBtn.textContent = 'Save and clone voice';
+      return;
+    }
+
+    setProgress(100, `${cloneData.name}'s voice is ready.`);
+    setTimeout(() => { window.location.href = '/dashboard'; }, 1200);
+
+  } catch (err) {
+    alert('Something went wrong. Please try again.');
+    submitBtn.disabled    = false;
+    submitBtn.textContent = 'Save and clone voice';
+  }
+});
+</script>
+{% endblock %}

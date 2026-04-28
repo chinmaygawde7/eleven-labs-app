@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Grief Companion{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:36px;">
+  <div>
+    <h1 class="page-title">Your loved ones</h1>
+    <p class="page-sub" style="margin-bottom:0;">
+      Generate a message instantly or set dates for annual delivery.
+    </p>
+  </div>
+  <a href="{{ url_for('voice.onboarding') }}" class="btn btn-ghost"
+     style="margin-top:6px;white-space:nowrap;">+ Add loved one</a>
+</div>
+
+{% if not loved_ones %}
+<div class="empty">
+  <div class="empty-title">No one added yet</div>
+  <p class="empty-sub">
+    Add a loved one and upload a short recording of their voice.<br />
+    We'll preserve it and let you hear from them whenever you need.
+  </p>
+  <a href="{{ url_for('voice.onboarding') }}" class="btn btn-primary">Add your first loved one</a>
+</div>
+
+{% else %}
+  {% for person in loved_ones %}
+  <div class="card" id="card-{{ person.id }}">
+
+    <div class="card-header">
+      <div>
+        <div class="card-name">{{ person.name }}</div>
+        <div class="card-relation">
+          {{ person.relationship | capitalize }}
+          &nbsp;·&nbsp;
+          Messages in
+          <strong>{{ person.message_language or 'English' }}</strong>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="badge badge-{{ person.cloning_status }}">
+          {% if person.cloning_status == 'cloned' %}Voice ready
+          {% elif person.cloning_status == 'failed' %}Clone failed
+          {% else %}Pending{% endif %}
+        </span>
+        <form method="POST"
+              action="{{ url_for('voice.delete_loved_one', loved_one_id=person.id) }}"
+              onsubmit="return confirm('Remove {{ person.name }} and all their data?')">
+          <button type="submit" class="btn btn-danger">Remove</button>
+        </form>
+      </div>
+    </div>
+
+    {% if person.personality_notes %}
+    <p style="font-size:13px;color:var(--text-hint);font-style:italic;margin-bottom:16px;">
+      "{{ person.personality_notes }}"
+    </p>
+    {% endif %}
+
+    {% if person.cloning_status == 'cloned' %}
+
+    <hr class="card-divider" />
+
+    <!-- ── INSTANT GENERATE ── -->
+    <div style="margin-bottom:4px;">
+      <div style="font-size:13px;font-weight:500;color:var(--text-muted);margin-bottom:10px;">
+        Hear from {{ person.name }} now
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input
+          type="text"
+          id="prompt-{{ person.id }}"
+          placeholder="What do you want to hear about? (optional)"
+          style="flex:1;padding:10px 12px;border:0.5px solid var(--border);
+                 border-radius:8px;font-size:14px;font-family:inherit;
+                 color:var(--text);background:var(--surface);outline:none;"
+        />
+        <button
+          class="btn btn-primary"
+          onclick="generateMessage('{{ person.id }}', '{{ person.name }}')"
+          id="gen-btn-{{ person.id }}"
+        >
+          Generate
+        </button>
+      </div>
+
+      <div class="prompt-examples">
+        Quick:
+        <span class="prompt-chip" onclick="setPrompt('{{ person.id }}', 'I just got promoted at work')">Got a promotion</span>
+        <span class="prompt-chip" onclick="setPrompt('{{ person.id }}', 'I am feeling lonely today')">Feeling lonely</span>
+        <span class="prompt-chip" onclick="setPrompt('{{ person.id }}', 'I miss you so much today')">Missing you</span>
+        <span class="prompt-chip" onclick="setPrompt('{{ person.id }}', 'I need some encouragement')">Need encouragement</span>
+      </div>
+    </div>
+
+    <!-- ── AUDIO PLAYER (hidden until generated) ── -->
+    <div id="player-{{ person.id }}" class="audio-player" style="display:none;">
+      <div class="player-inner">
+        <div>
+          <div class="player-name">{{ person.name }}</div>
+          <div class="player-script" id="script-{{ person.id }}"></div>
+        </div>
+        <audio id="audio-{{ person.id }}" controls style="width:100%;margin-top:10px;"></audio>
+      </div>
+    </div>
+
+    <!-- ── GENERATING STATE ── -->
+    <div id="generating-{{ person.id }}" class="generating-state" style="display:none;">
+      <div class="gen-dot"></div>
+      <span id="gen-msg-{{ person.id }}">Writing message…</span>
+    </div>
+
+    {% endif %}
+
+    <hr class="card-divider" />
+
+    <!-- ── MEMORY DATES ── -->
+    <div style="font-size:13px;font-weight:500;color:var(--text-muted);margin-bottom:12px;">
+      Annual reminders
+    </div>
+
+    {% if person.memory_dates %}
+    <div class="dates-list">
+      {% for date in person.memory_dates %}
+      <div class="date-row">
+        <div>
+          <span class="date-label">{{ date.label }}</span>
+          <span class="date-when">
+            — every
+            {{ ['','Jan','Feb','Mar','Apr','May','Jun',
+                'Jul','Aug','Sep','Oct','Nov','Dec'][date.month] }}
+            {{ date.day }}
+          </span>
+        </div>
+        <form method="POST"
+              action="{{ url_for('schedule.delete_memory_date', date_id=date.id) }}">
+          <button type="submit" class="btn btn-danger">✕</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="font-size:13px;color:var(--text-hint);margin-bottom:16px;">
+      No dates yet. Add one below.
+    </p>
+    {% endif %}
+
+    <hr class="card-divider" />
+
+    <form method="POST" action="{{ url_for('schedule.add_memory_date') }}"
+          class="date-form">
+      <input type="hidden" name="loved_one_id" value="{{ person.id }}" />
+      <div class="field">
+        <label>Occasion</label>
+        <input type="text" name="label" placeholder="e.g. Dad's birthday" required />
+      </div>
+      <div class="field">
+        <label>Month</label>
+        <select name="month" required>
+          <option value="" disabled selected>Mo</option>
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}">
+            {{ ['','Jan','Feb','Mar','Apr','May','Jun',
+                'Jul','Aug','Sep','Oct','Nov','Dec'][m] }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Day</label>
+        <input type="number" name="day" min="1" max="31"
+               placeholder="DD" required style="padding:10px 8px;" />
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+    </form>
+
+  </div>
+  {% endfor %}
+{% endif %}
+
+<script>
+function setPrompt(id, text) {
+  document.getElementById('prompt-' + id).value = text;
+}
+
+async function generateMessage(lovedOneId, name) {
+  const prompt     = document.getElementById('prompt-' + lovedOneId).value.trim();
+  const btn        = document.getElementById('gen-btn-' + lovedOneId);
+  const player     = document.getElementById('player-' + lovedOneId);
+  const genState   = document.getElementById('generating-' + lovedOneId);
+  const genMsg     = document.getElementById('gen-msg-' + lovedOneId);
+  const audioEl    = document.getElementById('audio-' + lovedOneId);
+  const scriptEl   = document.getElementById('script-' + lovedOneId);
+
+  btn.disabled    = true;
+  player.style.display  = 'none';
+  genState.style.display = 'flex';
+  genMsg.textContent     = 'Writing message…';
+
+  setTimeout(() => { genMsg.textContent = 'Synthesizing voice…'; }, 3000);
+  setTimeout(() => { genMsg.textContent = 'Almost ready…'; }, 9000);
+
+  try {
+    const res  = await fetch(`/voice/generate/${lovedOneId}`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ custom_prompt: prompt }),
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.error || 'Generation failed.');
+      return;
+    }
+
+    scriptEl.textContent   = data.script;
+    audioEl.src            = data.audio_url;
+    player.style.display   = 'block';
+    genState.style.display = 'none';
+    audioEl.play();
+
+  } catch (err) {
+    alert('Something went wrong. Please try again.');
+  } finally {
+    btn.disabled           = false;
+    genState.style.display = 'none';
+  }
+}
+</script>
+{% endblock %}

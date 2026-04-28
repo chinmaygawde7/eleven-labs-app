@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Grief Companion{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+</head>
+<body>
+
+  <nav class="nav">
+    <a href="{{ url_for('schedule.dashboard') }}" class="nav-logo">Grief Companion</a>
+    {% if session.get('user_id') %}
+    <div class="nav-right">
+      <span class="nav-email">{{ session.get('user_email') }}</span>
+      <a href="{{ url_for('voice.onboarding') }}" class="nav-link">Add loved one</a>
+      <a href="{{ url_for('auth.logout') }}" class="nav-link">Log out</a>
+    </div>
+    {% endif %}
+  </nav>
+
+  <main class="main">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-wrap">
+          {% for category, message in messages %}
+            <div class="flash flash--{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+
+  </main>
+
+</body>
+</html>

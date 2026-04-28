@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Create account — Grief Companion{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <h1 class="auth-title">Create your account</h1>
+  <p class="auth-sub">Preserve the voice of someone you love. Forever.</p>
+
+  <form method="POST" action="{{ url_for('auth.signup') }}">
+    <div class="field">
+      <label for="full_name">Your name</label>
+      <input type="text" id="full_name" name="full_name" placeholder="e.g. Priya Sharma" />
+    </div>
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required autocomplete="email" />
+    </div>
+    <div class="field">
+      <label for="password">Password <span style="color:var(--text-hint);font-weight:400;">(min. 6 characters)</span></label>
+      <input type="password" id="password" name="password" required autocomplete="new-password" />
+    </div>
+    <button type="submit" class="btn btn-primary btn-full">Create account</button>
+  </form>
+
+  <p class="auth-link">Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+</div>
+{% endblock %}
