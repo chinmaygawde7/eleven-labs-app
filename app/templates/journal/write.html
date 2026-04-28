@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Write — MindEcho{% endblock %}
+
+{% block content %}
+<div class="write-wrap">
+
+  <div class="write-header">
+    <h1 class="page-title">How are you feeling today?</h1>
+    <p class="page-sub">Write freely. This is just for you.</p>
+  </div>
+
+  <!-- MOOD PICKER -->
+  <div class="mood-row" id="mood-row">
+    {% for mood in moods %}
+    <button
+      type="button"
+      class="mood-btn"
+      data-mood="{{ mood }}"
+      onclick="selectMood('{{ mood }}')"
+    >
+      {{ mood | capitalize }}
+    </button>
+    {% endfor %}
+  </div>
+
+  <!-- LANGUAGE -->
+  <div class="field" style="max-width:200px;margin-bottom:20px;">
+    <label for="language">Language</label>
+    <select id="language">
+      {% for key, label in languages.items() %}
+      <option value="{{ key }}" {% if key == 'English' %}selected{% endif %}>
+        {{ label }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- JOURNAL TEXT -->
+  <div class="field">
+    <textarea
+      id="entry-text"
+      placeholder="Start writing... there's no wrong way to do this."
+      rows="8"
+      style="font-family:'Lora',serif;font-size:16px;line-height:1.8;"
+    ></textarea>
+    <span class="field-hint" id="char-count">0 characters</span>
+  </div>
+
+  <button class="btn btn-primary" id="submit-btn" onclick="submitEntry()">
+    Submit and hear reflection
+  </button>
+
+  <!-- GENERATING STATE -->
+  <div id="generating" class="generating-state" style="display:none;">
+    <div class="gen-dot"></div>
+    <span id="gen-msg">Reading your entry…</span>
+  </div>
+
+  <!-- REFLECTION PLAYER -->
+  <div id="reflection-wrap" class="reflection-card" style="display:none;">
+    <div class="reflection-label">Your reflection</div>
+    <p class="reflection-text" id="reflection-text"></p>
+    <audio id="reflection-audio" controls style="width:100%;margin-top:16px;"></audio>
+    <div style="margin-top:16px;display:flex;gap:10px;">
+      <button class="btn btn-ghost" onclick="resetForm()">Write another entry</button>
+      <a href="{{ url_for('journal.history') }}" class="btn btn-ghost">View history</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let selectedMood = "";
+
+function selectMood(mood) {
+  selectedMood = mood;
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-mood="${mood}"]`).classList.add('active');
+}
+
+document.getElementById('entry-text').addEventListener('input', function() {
+  document.getElementById('char-count').textContent =
+    this.value.length + ' characters';
+});
+
+async function submitEntry() {
+  const text     = document.getElementById('entry-text').value.trim();
+  const language = document.getElementById('language').value;
+
+  if (!selectedMood) { alert('Please select a mood first.'); return; }
+  if (!text)          { alert('Please write something first.'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+
+  document.getElementById('generating').style.display = 'flex';
+  document.getElementById('reflection-wrap').style.display = 'none';
+
+  const msgs = [
+    'Reading your entry…',
+    'Writing your reflection…',
+    'Preparing your voice response…',
+  ];
+  let i = 0;
+  const interval = setInterval(() => {
+    i = (i + 1) % msgs.length;
+    document.getElementById('gen-msg').textContent = msgs[i];
+  }, 3000);
+
+  try {
+    const res  = await fetch('/entry', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({
+        entry_text: text,
+        mood:       selectedMood,
+        language:   language,
+      }),
+    });
+    const data = await res.json();
+    clearInterval(interval);
+
+    if (!data.success) {
+      alert(data.error || 'Something went wrong.');
+      btn.disabled = false;
+      document.getElementById('generating').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('generating').style.display    = 'none';
+    document.getElementById('reflection-wrap').style.display = 'block';
+    document.getElementById('reflection-text').textContent  = data.reflection;
+    document.getElementById('reflection-audio').src         = data.audio_url;
+    document.getElementById('reflection-audio').play();
+    btn.disabled = false;
+
+  } catch (err) {
+    clearInterval(interval);
+    alert('Something went wrong. Please try again.');
+    btn.disabled = false;
+    document.getElementById('generating').style.display = 'none';
+  }
+}
+
+function resetForm() {
+  document.getElementById('entry-text').value           = '';
+  document.getElementById('char-count').textContent     = '0 characters';
+  document.getElementById('reflection-wrap').style.display = 'none';
+  selectedMood = '';
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+}
+</script>
+{% endblock %}

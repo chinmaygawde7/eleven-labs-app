@@ -3,10 +3,6 @@ from flask import session, redirect, url_for
 
 
 def login_required(f):
-    """
-    Add @login_required above any route that needs
-    the user to be logged in. Redirects to /auth/login otherwise.
-    """
     @wraps(f)
     def decorated(*args, **kwargs):
         if "user_id" not in session:

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Insights — MindEcho{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Your patterns</h1>
+<p class="page-sub">Last 30 days of emotional data — just for you.</p>
+
+<!-- STATS ROW -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-num">{{ total }}</div>
+    <div class="stat-label">Entries this month</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ streak }}</div>
+    <div class="stat-label">Day streak</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">
+      {% if mood_counts %}
+        {{ mood_counts | dictsort(by='value') | reverse | first | first | capitalize }}
+      {% else %}—{% endif %}
+    </div>
+    <div class="stat-label">Most felt mood</div>
+  </div>
+</div>
+
+<!-- MOOD BREAKDOWN -->
+{% if mood_counts %}
+<div class="card" style="margin-bottom:16px;">
+  <div style="font-size:13px;font-weight:500;color:var(--text-muted);margin-bottom:16px;">
+    Mood breakdown
+  </div>
+  {% for mood, count in mood_counts.items() | sort(attribute='1', reverse=True) %}
+  <div style="margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;
+                font-size:13px;margin-bottom:4px;">
+      <span style="color:{{ mood_colors.get(mood, '#888') }};font-weight:500;">
+        {{ mood | capitalize }}
+      </span>
+      <span style="color:var(--text-hint);">{{ count }} entries</span>
+    </div>
+    <div style="height:6px;background:var(--page);border-radius:4px;overflow:hidden;">
+      <div style="height:100%;width:{{ (count / total * 100) | int }}%;
+                  background:{{ mood_colors.get(mood, '#888') }};
+                  border-radius:4px;transition:width 0.6s ease;">
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- CALENDAR HEATMAP -->
+{% if days %}
+<div class="card" style="margin-bottom:16px;">
+  <div style="font-size:13px;font-weight:500;color:var(--text-muted);margin-bottom:16px;">
+    Last 30 days
+  </div>
+  <div class="heatmap">
+    {% for i in range(30) %}
+      {% set day = (today - timedelta(days=29-i)).isoformat() %}
+      {% set mood = days.get(day, '') %}
+      <div class="heatmap-cell {{ 'filled' if mood else 'empty' }}"
+           title="{{ day }}{% if mood %} — {{ mood }}{% endif %}"
+           {% if mood %}style="background:{{ mood_colors.get(mood, '#ccc') }}55;
+           border-color:{{ mood_colors.get(mood, '#ccc') }};"{% endif %}>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- WEEKLY SUMMARIES -->
+{% if summaries %}
+<h2 class="page-title" style="font-size:20px;margin-bottom:6px;">Weekly reflections</h2>
+<p class="page-sub">Delivered every Sunday morning.</p>
+{% for s in summaries %}
+<div class="card" style="margin-bottom:12px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              margin-bottom:12px;">
+    <span style="font-size:13px;font-weight:500;color:var(--text-muted);">
+      Week of {{ s.week_start }}
+    </span>
+    {% if s.dominant_mood %}
+    <span class="badge" style="
+      background:{{ mood_colors.get(s.dominant_mood, '#888') }}22;
+      color:{{ mood_colors.get(s.dominant_mood, '#888') }};
+      border:0.5px solid {{ mood_colors.get(s.dominant_mood, '#888') }}55;">
+      {{ s.dominant_mood | capitalize }} week
+    </span>
+    {% endif %}
+  </div>
+  <p style="font-size:14px;line-height:1.7;color:var(--text);
+            font-family:'Lora',serif;font-style:italic;">
+    {{ s.summary_text }}
+  </p>
+  {% if s.audio_url %}
+  <audio controls src="{{ s.audio_url }}"
+         style="width:100%;margin-top:12px;"></audio>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if not total %}
+<div class="empty">
+  <div class="empty-title">No data yet</div>
+  <p class="empty-sub">Start journaling and your insights will appear here.</p>
+  <a href="{{ url_for('journal.write') }}" class="btn btn-primary">Write first entry</a>
+</div>
+{% endif %}
+
+<script>
+// Pass Python date values to JS for heatmap
+const today   = new Date();
+</script>
+{% endblock %}

@@ -3,81 +3,98 @@ from app.config import Config
 
 _client = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
 
-SUPPORTED_LANGUAGES = {
-    "English":    "English",
-    "Hindi":      "Hindi (हिन्दी)",
-    "Marathi":    "Marathi (मराठी)",
-    "Tamil":      "Tamil (தமிழ்)",
-    "Telugu":     "Telugu (తెలుగు)",
-    "Kannada":    "Kannada (ಕನ್ನಡ)",
-    "Malayalam":  "Malayalam (മലയാളം)",
-    "Bengali":    "Bengali (বাংলা)",
-    "Gujarati":   "Gujarati (ગુજરાતી)",
-    "Punjabi":    "Punjabi (ਪੰਜਾਬੀ)",
-    "Odia":       "Odia (ଓଡ଼ିଆ)",
-    "Urdu":       "Urdu (اردو)",
-    "Sanskrit":   "Sanskrit (संस्कृतम्)",
-}
+MOODS = ["happy", "anxious", "sad", "grateful", "angry", "numb", "overwhelmed", "calm"]
 
-# Maps our language to the closest ElevenLabs supported language
-# ElevenLabs multilingual v2 supports these natively
-ELEVENLABS_LANGUAGE_MAP = {
+LANGUAGES = {
     "English":   "English",
-    "Hindi":     "Hindi",
-    "Tamil":     "Tamil",
-    "Telugu":    "Telugu",
-    "Marathi":   "Hindi",    # closest supported
-    "Kannada":   "Hindi",    # closest supported
-    "Malayalam": "Tamil",    # closest supported
-    "Bengali":   "Hindi",    # closest supported
-    "Gujarati":  "Hindi",    # closest supported
-    "Punjabi":   "Hindi",    # closest supported
-    "Odia":      "Hindi",    # closest supported
-    "Urdu":      "Hindi",    # closest supported
-    "Sanskrit":  "Hindi",    # closest supported
+    "Hindi":     "Hindi (हिन्दी)",
+    "Marathi":   "Marathi (मराठी)",
+    "Tamil":     "Tamil (தமிழ்)",
+    "Telugu":    "Telugu (తెలుగు)",
+    "Kannada":   "Kannada (ಕನ್ನಡ)",
+    "Bengali":   "Bengali (বাংলা)",
+    "Gujarati":  "Gujarati (ગુજરાતી)",
+    "Punjabi":   "Punjabi (ਪੰਜਾਬੀ)",
 }
 
 
-def generate_message(
-    loved_one_name:    str,
-    relationship:      str,
-    personality_notes: str,
-    occasion_label:    str,
-    recipient_name:    str,
-    message_language:  str = "English",
-) -> str:
+def reflect_on_entry(entry_text: str, mood: str, language: str = "English") -> str:
     """
-    Ask Claude to write a spoken message in the loved one's voice.
-    message_language controls what language the script is written in.
-    Returns 80–120 words of plain text ready for ElevenLabs TTS.
+    Read the user's journal entry and write a warm, human reflection.
+    Not therapy. Not advice. Just presence and acknowledgement.
+    Returns 80-100 words spoken naturally.
     """
-    system = f"""You write short personal voice messages that sound like they come
-from a specific real person speaking to someone they love deeply.
-The message is converted to audio using their cloned voice — write for the ear.
+    response = _client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=300,
+        system=f"""You are a warm, calm presence — like a trusted friend who truly listens.
+Someone has shared their journal entry with you. Your job is to reflect it back
+with empathy, making them feel heard. You are NOT a therapist. You do NOT give advice.
+You do NOT diagnose or suggest solutions.
 
 Rules:
-- First person as {loved_one_name}
-- 80 to 120 words only
-- Write entirely in {message_language} — do not mix languages unless the personality
-  notes indicate the person naturally code-switched (e.g. Hindi + English)
-- Warm, personal, and natural — no clichés like "gone too soon" or "watching over you"
-- Reference the occasion without being heavy-handed
-- End with a tender sign-off that fits the relationship and language
-- Output ONLY the message text — no stage directions, no quotes, no preamble"""
+- Write in second person (you, your)
+- 80 to 100 words only — this will be spoken aloud
+- Acknowledge the specific feelings they described, not generic ones
+- Warm and grounded — never clinical, never preachy
+- End with one gentle, open sentence that invites them to keep going
+- Write entirely in {language}
+- Output ONLY the reflection — no preamble, no labels""",
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Mood: {mood}\n\n"
+                f"Journal entry:\n{entry_text}\n\n"
+                f"Write a warm reflection in {language}."
+            ),
+        }],
+    )
+    return response.content[0].text.strip()
 
-    user = f"""Write a voice message from {loved_one_name} ({relationship})
-to {recipient_name} for: {occasion_label}.
 
-How {loved_one_name} spoke and their personality:
-{personality_notes or "Warm, loving, always encouraging."}
+def generate_weekly_summary(
+    entries: list[dict],
+    language: str = "English",
+) -> tuple[str, str]:
+    """
+    Given a week's journal entries, write a summary and identify the dominant mood.
+    Returns (summary_text, dominant_mood).
+    """
+    if not entries:
+        return "You didn't journal this week — and that's okay. This week is a fresh start.", "calm"
 
-Write the message in {message_language}.
-This plays as real audio in their cloned voice. Make it feel like they are truly there."""
+    entries_text = "\n\n".join([
+        f"Day {i+1} ({e['mood']}):\n{e['entry_text']}"
+        for i, e in enumerate(entries)
+    ])
 
     response = _client.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=400,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+        max_tokens=500,
+        system=f"""You write warm, honest weekly reflections for a journaling app.
+You have access to a person's journal entries from the past week.
+Write a spoken summary they will hear as an audio message on Sunday morning.
+
+Rules:
+- 120 to 150 words — spoken naturally, no bullet points
+- Acknowledge the emotional arc of the week honestly
+- Note specific things they mentioned — make it personal not generic
+- End with one line of gentle encouragement for the week ahead
+- Write entirely in {language}
+- Return JSON with exactly two keys: "summary" and "dominant_mood"
+- dominant_mood must be one of: happy, anxious, sad, grateful, angry, numb, overwhelmed, calm
+- No markdown, no preamble""",
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Here are this week's journal entries:\n\n{entries_text}\n\n"
+                f"Write the weekly summary in {language}."
+            ),
+        }],
     )
-    return response.content[0].text.strip()
+
+    import json
+    text = response.content[0].text.strip()
+    text = text.replace("```json", "").replace("```", "").strip()
+    data = json.loads(text)
+    return data["summary"], data["dominant_mood"]

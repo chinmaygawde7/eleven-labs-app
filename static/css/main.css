@@ -333,3 +333,109 @@ body {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.4; transform: scale(0.7); }
 }
+
+/* ── WRITE PAGE ──────────────────────────────────── */
+.write-wrap  { max-width: 640px; margin: 0 auto; }
+.write-header { margin-bottom: 24px; }
+
+/* ── MOOD PICKER ─────────────────────────────────── */
+.mood-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.mood-btn {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 0.5px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.mood-btn:hover { border-color: var(--purple); color: var(--purple); }
+.mood-btn.active {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: white;
+}
+
+/* ── REFLECTION CARD ─────────────────────────────── */
+.reflection-card {
+  background: var(--purple-lt);
+  border: 0.5px solid #AFA9EC;
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-top: 20px;
+}
+.reflection-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--purple);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 10px;
+}
+.reflection-text {
+  font-family: 'Lora', serif;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--purple-dk);
+  font-style: italic;
+}
+
+/* ── MOOD BADGE ──────────────────────────────────── */
+.mood-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 0.5px solid var(--border);
+}
+
+/* ── INSIGHTS ────────────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+}
+.stat-num {
+  font-family: 'Lora', serif;
+  font-size: 32px;
+  color: var(--purple-dk);
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--text-hint);
+}
+
+/* ── HEATMAP ─────────────────────────────────────── */
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 4px;
+}
+.heatmap-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  border: 0.5px solid var(--border);
+  background: var(--page);
+}
+.heatmap-cell.filled { border-width: 1px; }
+@media (max-width: 520px) {
+  .heatmap { grid-template-columns: repeat(10, 1fr); }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}

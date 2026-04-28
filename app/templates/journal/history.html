@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}History — MindEcho{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Your entries</h1>
+<p class="page-sub">Everything you've written, saved privately.</p>
+
+{% if not entries %}
+<div class="empty">
+  <div class="empty-title">Nothing here yet</div>
+  <p class="empty-sub">Write your first entry and hear it reflected back.</p>
+  <a href="{{ url_for('journal.write') }}" class="btn btn-primary">Start writing</a>
+</div>
+
+{% else %}
+  {% for entry in entries %}
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-header">
+      <div>
+        <span class="badge mood-badge" data-mood="{{ entry.mood }}">
+          {{ entry.mood | capitalize }}
+        </span>
+        <span style="font-size:12px;color:var(--text-hint);margin-left:10px;">
+          {{ entry.created_at[:10] }}
+        </span>
+      </div>
+      <form method="POST"
+            action="{{ url_for('journal.delete_entry', entry_id=entry.id) }}"
+            onsubmit="return confirm('Delete this entry?')">
+        <button type="submit" class="btn btn-danger">✕</button>
+      </form>
+    </div>
+
+    <p style="font-size:15px;line-height:1.8;color:var(--text);
+              font-family:'Lora',serif;margin:12px 0;">
+      {{ entry.entry_text }}
+    </p>
+
+    {% if entry.reflection %}
+    <div class="reflection-card" style="margin-top:12px;">
+      <div class="reflection-label">Reflection</div>
+      <p class="reflection-text">{{ entry.reflection }}</p>
+      {% if entry.audio_url %}
+      <audio controls src="{{ entry.audio_url }}"
+             style="width:100%;margin-top:12px;"></audio>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+{% endif %}
+
+<script>
+const MOOD_COLORS = {
+  happy:"#4CAF50", grateful:"#8BC34A", calm:"#03A9F4",
+  anxious:"#FF9800", overwhelmed:"#FF5722",
+  sad:"#5C6BC0", angry:"#F44336", numb:"#9E9E9E"
+};
+document.querySelectorAll('.mood-badge').forEach(badge => {
+  const mood = badge.dataset.mood;
+  if (MOOD_COLORS[mood]) {
+    badge.style.background = MOOD_COLORS[mood] + '22';
+    badge.style.color      = MOOD_COLORS[mood];
+    badge.style.border     = `0.5px solid ${MOOD_COLORS[mood]}55`;
+  }
+});
+</script>
+{% endblock %}

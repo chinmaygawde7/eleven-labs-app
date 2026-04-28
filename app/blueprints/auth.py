@@ -12,6 +12,7 @@ def _save_session(user, session_data):
     session["user_email"]   = user.email
     session["access_token"] = session_data.access_token
 
+
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "GET":
@@ -37,26 +38,23 @@ def signup():
             "options":  {"data": {"full_name": full_name}},
         })
 
-        print("SIGNUP RESPONSE USER:", response.user)
-        print("SIGNUP RESPONSE SESSION:", response.session)
-
         if response.user and response.session:
             _save_session(response.user, response.session)
-            return redirect(url_for("voice.onboarding"))
+            return redirect(url_for("journal.write"))  # ← fixed
 
-        # User created but no session — email confirmation required
         if response.user and not response.session:
-            flash("Account created! Check your email to confirm before signing in.", "info")
+            flash("Account created! Please sign in.", "info")
             return render_template("auth/signup.html")
 
-        flash("Signup failed. The email may already be in use.", "error")
+        flash("Signup failed. Email may already be in use.", "error")
 
     except Exception as e:
         print("SIGNUP ERROR:", str(e))
         flash(f"Error: {str(e)}", "error")
 
     return render_template("auth/signup.html")
-    
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "GET":
@@ -77,7 +75,7 @@ def login():
 
         if response.user and response.session:
             _save_session(response.user, response.session)
-            return redirect(url_for("schedule.dashboard"))
+            return redirect(url_for("journal.write"))  # ← fixed
 
         flash("Invalid email or password.", "error")
 
