@@ -390,7 +390,7 @@ eleven-labs-app/
 ## Author
 
 **Chinmay Nitin Gawde**  
-[GitHub](https://github.com/chinmaygawde7) · [LinkedIn](https://linkedin.com/in/yourprofile)
+[GitHub](https://github.com/chinmaygawde7) · [LinkedIn](https://www.linkedin.com/in/chinmay-gawde-77042218b/)
 
 ---
 
